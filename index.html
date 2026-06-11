@@ -294,20 +294,19 @@ tbody tr:hover td { background: var(--surface); }
 <div class="modal-overlay" id="proModal">
   <div class="modal">
     <h3>⭐ 升级到 DataCleaner Pro</h3>
-    <p style="color:var(--text2);margin-bottom:16px;">解锁无限行数 + 批量处理 + 自动调度</p>
+    <p style="color:var(--text2);margin-bottom:16px;">解锁无限行数 + 批量处理</p>
     <div style="display:flex;gap:12px;margin-bottom:16px;">
-      <div style="flex:1;border:1px solid var(--accent);border-radius:var(--radius);padding:16px;text-align:center;">
+      <a href="https://lopfve.lemonsqueezy.com/buy/1776138" target="_blank" rel="noopener" style="flex:1;border:1px solid var(--accent);border-radius:var(--radius);padding:16px;text-align:center;text-decoration:none;color:var(--text);display:block;" onmouseover="this.style.background='#1e3a5f'" onmouseout="this.style.background='transparent'">
         <div style="font-size:1.5rem;font-weight:700;">$5<span style="font-size:0.8rem;color:var(--text2);">/月</span></div>
-        <div style="font-size:0.8rem;color:var(--text2);">按月订阅</div>
-      </div>
-      <div style="flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;">
+        <div style="font-size:0.8rem;color:var(--text2);">按月订阅 →</div>
+      </a>
+      <a href="https://lopfve.lemonsqueezy.com/buy/1776205" target="_blank" rel="noopener" style="flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;text-decoration:none;color:var(--text);display:block;" onmouseover="this.style.background='#1e3a5f'" onmouseout="this.style.background='transparent'">
         <div style="font-size:1.5rem;font-weight:700;">$29<span style="font-size:0.8rem;color:var(--text2);">/终身</span></div>
-        <div style="font-size:0.8rem;color:var(--text2);">一次购买</div>
-      </div>
+        <div style="font-size:0.8rem;color:var(--text2);">一次购买 →</div>
+      </a>
     </div>
     <p style="font-size:0.8rem;color:var(--text2);margin-bottom:12px;">
-      我们使用 Lemonsqueezy 收款，支持支付宝/微信/银行卡。
-      <br>付款后你会收到激活码，输入下方即可解锁。
+      购买后你会收到激活码邮件，粘贴到下方即可解锁。
     </p>
     <input type="text" id="licenseKey" placeholder="输入激活码...">
     <div class="btn-row">
@@ -791,20 +790,35 @@ function showMergeModal() { updateColSelects(); document.getElementById('mergeMo
 function showRenameModal() { updateColSelects(); document.getElementById('renameModal').classList.add('show'); }
 function showTrimModal() { updateColSelects(); document.getElementById('trimModal').classList.add('show'); }
 
-function verifyLicense() {
+async function verifyLicense() {
   const key = document.getElementById('licenseKey').value.trim();
-  // Simple client-side validation (in production, verify server-side)
-  if (key.startsWith('DC-PRO-') && key.length > 20) {
-    isPro = true;
-    localStorage.setItem('dc_pro_key', key);
-    document.querySelector('.pro-badge').textContent = '⭐ Pro 已激活';
-    document.querySelector('.pro-badge').style.background = 'var(--green)';
-    closeProModal();
-    render();
-    showToast('Pro 已激活！');
-  } else {
-    showToast('激活码无效');
+  if (!key) return;
+  const btn = document.querySelector('#proModal .primary');
+  btn.textContent = '验证中...';
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/api/verify-license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseKey: key }),
+    });
+    const data = await resp.json();
+    if (data.valid) {
+      isPro = true;
+      localStorage.setItem('dc_pro_key', key);
+      document.querySelector('.pro-badge').textContent = '⭐ Pro 已激活';
+      document.querySelector('.pro-badge').style.background = 'var(--green)';
+      closeProModal();
+      render();
+      showToast('Pro 已激活！');
+    } else {
+      showToast(data.error || '激活码无效');
+    }
+  } catch (e) {
+    showToast('网络错误，请重试');
   }
+  btn.textContent = '激活';
+  btn.disabled = false;
 }
 
 function clearAll() {
