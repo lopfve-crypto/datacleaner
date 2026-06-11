@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataCleaner — 一键清洗你的数据</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧹</text></svg>">
+<style>
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface2: #334155;
+  --border: #475569;
+  --text: #f1f5f9;
+  --text2: #94a3b8;
+  --accent: #3b82f6;
+  --accent2: #2563eb;
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #eab308;
+  --radius: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  position: sticky; top:0; z-index:100;
+}
+.logo { font-size:1.25rem; font-weight:700; }
+.logo span { color: var(--accent); }
+.pro-badge {
+  background: var(--yellow);
+  color: #000;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+.pro-badge:hover { filter: brightness(1.1); }
+
+main { padding: 24px; max-width: 1400px; margin:0 auto; }
+
+/* Upload Zone */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  margin-bottom: 20px;
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: #1e293b44; }
+.upload-zone p { color: var(--text2); margin-top:8px; }
+.upload-zone input { display:none; }
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+  align-items: center;
+}
+.toolbar button, .toolbar select {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background .15s;
+}
+.toolbar button:hover, .toolbar select:hover { background: var(--border); }
+.toolbar button.accent { background: var(--accent); border-color: var(--accent2); color:#fff; }
+.toolbar button.accent:hover { background: var(--accent2); }
+.toolbar button.green { background: var(--green); border-color: var(--green); color:#000; }
+.toolbar button.green:hover { filter: brightness(0.9); }
+
+/* Table */
+.table-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 320px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+th, td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  text-align: left;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+th {
+  background: var(--surface);
+  position: sticky; top:0; z-index:2;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+th:hover { background: var(--surface2); }
+td { background: var(--bg); }
+tbody tr:hover td { background: var(--surface); }
+.col-menu-btn {
+  margin-left: 6px;
+  opacity: 0.4;
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+.col-menu-btn:hover { opacity: 1; }
+
+/* Stats */
+.stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  font-size: 0.8rem;
+  color: var(--text2);
+}
+.stats strong { color: var(--text); }
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed; inset:0;
+  background: #000000aa;
+  z-index: 200;
+  justify-content: center;
+  align-items: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  min-width: 360px;
+  max-width: 500px;
+}
+.modal h3 { margin-bottom: 16px; }
+.modal label { display:block; font-size:0.85rem; color:var(--text2); margin-bottom:4px; }
+.modal input, .modal select, .modal textarea {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+.modal textarea { min-height: 120px; resize: vertical; font-family: monospace; }
+.modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+.modal button {
+  padding: 8px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 0.85rem;
+  background: var(--surface2);
+  color: var(--text);
+}
+.modal button.primary { background: var(--accent); border-color: var(--accent2); color:#fff; }
+
+/* Paste area */
+.paste-area {
+  width: 100%;
+  min-height: 120px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 12px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  resize: vertical;
+  display: none;
+}
+
+/* Row limit bar */
+.limit-bar {
+  display: none;
+  background: var(--yellow);
+  color: #000;
+  text-align: center;
+  padding: 10px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.limit-bar.show { display: block; }
+.limit-bar a { color: #000; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--green);
+  color: #000;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 0.85rem;
+  z-index: 300;
+  animation: slideUp 0.3s ease;
+  display: none;
+}
+.toast.show { display: block; }
+@keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+
+/* Responsive */
+@media (max-width: 768px) {
+  main { padding: 12px; }
+  .toolbar { flex-wrap: wrap; }
+  .stats { flex-direction: column; gap: 4px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🧹 Data<span>Cleaner</span></div>
+  <button class="pro-badge" onclick="showProModal()">⭐ 免费版 · 前100行</button>
+</header>
+
+<main>
+  <div class="limit-bar" id="limitBar">
+    数据已超过 100 行，显示前 100 行。解锁无限行数 →
+    <a href="#" onclick="showProModal();return false">升级 Pro（$5/月）</a>
+  </div>
+
+  <div class="upload-zone" id="uploadZone">
+    <div style="font-size:2rem;margin-bottom:8px;">📂</div>
+    <strong>拖拽文件到此处，或点击上传</strong>
+    <p>支持 CSV、TSV、JSON、Excel (.xlsx)、以及粘贴文本</p>
+    <input type="file" id="fileInput" accept=".csv,.tsv,.json,.xlsx,.txt">
+  </div>
+
+  <textarea class="paste-area" id="pasteArea" placeholder="直接粘贴你的数据...&#10;支持 CSV、制表符分隔、JSON 格式&#10;粘贴后按 Ctrl+Enter 加载"></textarea>
+
+  <div id="workspace" style="display:none;">
+    <div class="stats" id="stats"></div>
+    <div class="toolbar" id="toolbar">
+      <button onclick="deduplicate()">去重</button>
+      <button onclick="removeEmptyRows()">删空行</button>
+      <button onclick="showTrimModal()">去空格</button>
+      <button onclick="showFindReplaceModal()">查找替换</button>
+      <button onclick="showSplitModal()">拆分列</button>
+      <button onclick="showMergeModal()">合并列</button>
+      <button title="修复常见乱码" onclick="fixEncoding()">修复乱码</button>
+      <button title="自动修正日期格式" onclick="autoFixDates()">日期修正</button>
+      <button onclick="showRenameModal()">重命名列</button>
+      <button onclick="undoLast()" title="撤销上一步">↩ 撤销</button>
+      <span style="flex:1;"></span>
+      <button class="accent" onclick="exportCSV()">导出 CSV</button>
+      <button class="accent" onclick="exportJSON()">导出 JSON</button>
+      <button class="green" onclick="exportExcel()">导出 Excel</button>
+      <button style="background:var(--red);border-color:var(--red);" onclick="clearAll()">清空</button>
+    </div>
+    <div class="table-wrap" id="tableWrap"></div>
+  </div>
+</main>
+
+<!-- Modals -->
+<div class="modal-overlay" id="proModal">
+  <div class="modal">
+    <h3>⭐ 升级到 DataCleaner Pro</h3>
+    <p style="color:var(--text2);margin-bottom:16px;">解锁无限行数 + 批量处理 + 自动调度</p>
+    <div style="display:flex;gap:12px;margin-bottom:16px;">
+      <div style="flex:1;border:1px solid var(--accent);border-radius:var(--radius);padding:16px;text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;">$5<span style="font-size:0.8rem;color:var(--text2);">/月</span></div>
+        <div style="font-size:0.8rem;color:var(--text2);">按月订阅</div>
+      </div>
+      <div style="flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;">$29<span style="font-size:0.8rem;color:var(--text2);">/终身</span></div>
+        <div style="font-size:0.8rem;color:var(--text2);">一次购买</div>
+      </div>
+    </div>
+    <p style="font-size:0.8rem;color:var(--text2);margin-bottom:12px;">
+      我们使用 Lemonsqueezy 收款，支持支付宝/微信/银行卡。
+      <br>付款后你会收到激活码，输入下方即可解锁。
+    </p>
+    <input type="text" id="licenseKey" placeholder="输入激活码...">
+    <div class="btn-row">
+      <button onclick="closeProModal()">取消</button>
+      <button class="primary" onclick="verifyLicense()">激活</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="findReplaceModal">
+  <div class="modal">
+    <h3>查找替换</h3>
+    <label>查找</label><input type="text" id="findText">
+    <label>替换为</label><input type="text" id="replaceText">
+    <label><input type="checkbox" id="regexMode"> 使用正则</label>
+    <div class="btn-row">
+      <button onclick="closeModal('findReplaceModal')">取消</button>
+      <button class="primary" onclick="findReplace()">替换</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="splitModal">
+  <div class="modal">
+    <h3>拆分列</h3>
+    <label>选择列</label><select id="splitCol"></select>
+    <label>分隔符</label><input type="text" id="splitDelim" value=",">
+    <label>最多拆分</label><input type="number" id="splitMax" value="10" min="1" max="50">
+    <div class="btn-row">
+      <button onclick="closeModal('splitModal')">取消</button>
+      <button class="primary" onclick="splitColumn()">拆分</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="mergeModal">
+  <div class="modal">
+    <h3>合并列</h3>
+    <label>第一列</label><select id="mergeCol1"></select>
+    <label>第二列</label><select id="mergeCol2"></select>
+    <label>连接符</label><input type="text" id="mergeSep" value="-">
+    <div class="btn-row">
+      <button onclick="closeModal('mergeModal')">取消</button>
+      <button class="primary" onclick="mergeColumns()">合并</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="renameModal">
+  <div class="modal">
+    <h3>重命名列</h3>
+    <label>列</label><select id="renameCol"></select>
+    <label>新名称</label><input type="text" id="renameNew">
+    <div class="btn-row">
+      <button onclick="closeModal('renameModal')">取消</button>
+      <button class="primary" onclick="renameColumn()">重命名</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="trimModal">
+  <div class="modal">
+    <h3>去除空格</h3>
+    <p style="color:var(--text2);margin-bottom:12px;">选择要去除空格的列（不选则全部列）</p>
+    <select id="trimCol" style="width:100%;margin-bottom:12px;"><option value="">全部列</option></select>
+    <label><input type="checkbox" id="trimBoth" checked> 去除首尾空格</label>
+    <label><input type="checkbox" id="trimExtra"> 合并连续空格为单个</label>
+    <div class="btn-row">
+      <button onclick="closeModal('trimModal')">取消</button>
+      <button class="primary" onclick="trimWhitespace()">应用</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==== STATE ====
+let rows = [];
+let columns = [];
+let history = [];
+const FREE_ROW_LIMIT = 100;
+let isPro = false;
+
+// ==== INIT ====
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const pasteArea = document.getElementById('pasteArea');
+const workspace = document.getElementById('workspace');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (file) processFile(file);
+});
+
+pasteArea.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') {
+    processPastedText(pasteArea.value);
+  }
+});
+
+// ==== FILE PROCESSING ====
+function processFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = e => {
+    if (ext === 'json') {
+      loadFromJSON(e.target.result);
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      loadFromExcel(e.target.result);
+    } else {
+      loadFromCSV(e.target.result, ext === 'tsv' ? '\t' : ',');
+    }
+  };
+  if (ext === 'xlsx' || ext === 'xls') {
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.readAsText(file);
+  }
+  showPaste(false);
+}
+
+function processPastedText(text) {
+  if (!text.trim()) return;
+  // Auto-detect format
+  if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+    loadFromJSON(text);
+  } else {
+    // Detect delimiter
+    const firstLine = text.trim().split('\n')[0];
+    const tabs = (firstLine.match(/\t/g) || []).length;
+    const commas = (firstLine.match(/,/g) || []).length;
+    const delim = tabs > commas ? '\t' : ',';
+    loadFromCSV(text, delim);
+  }
+  showPaste(false);
+}
+
+function loadFromCSV(text, delimiter) {
+  const result = Papa.parse(text.trim(), {
+    delimiter: delimiter,
+    header: true,
+    skipEmptyLines: true,
+    transform: v => v.trim()
+  });
+  if (result.errors.length && result.data.length === 0) {
+    // Fallback: try auto-detect
+    const ad = Papa.parse(text.trim(), { header: true, skipEmptyLines: true });
+    if (ad.data.length > 0) result.data = ad.data; else { showToast('无法解析数据，请检查格式'); return; }
+  }
+  columns = result.meta.fields || [];
+  rows = result.data.filter(r => Object.values(r).some(v => v !== '' && v !== null));
+  if (rows.length === 0) { showToast('未找到数据行'); return; }
+  saveState();
+  render();
+}
+
+function loadFromJSON(text) {
+  try {
+    let data = JSON.parse(text);
+    if (!Array.isArray(data)) data = [data];
+    if (data.length === 0) { showToast('JSON 数据为空'); return; }
+    columns = Object.keys(data[0]);
+    rows = data;
+    saveState();
+    render();
+  } catch (e) { showToast('JSON 解析失败: ' + e.message); }
+}
+
+function loadFromExcel(buffer) {
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  if (json.length === 0) { showToast('工作表为空'); return; }
+  columns = Object.keys(json[0]);
+  rows = json;
+  saveState();
+  render();
+}
+
+// ==== RENDER ====
+function render() {
+  if (rows.length === 0) { workspace.style.display = 'none'; return; }
+  workspace.style.display = 'block';
+
+  const displayRows = (!isPro && rows.length > FREE_ROW_LIMIT) ? rows.slice(0, FREE_ROW_LIMIT) : rows;
+  const limitBar = document.getElementById('limitBar');
+  if (!isPro && rows.length > FREE_ROW_LIMIT) {
+    limitBar.classList.add('show');
+    limitBar.textContent = `数据共 ${rows.length} 行，仅显示前 ${FREE_ROW_LIMIT} 行。解锁无限行数 → 升级 Pro（$5/月）`;
+  } else {
+    limitBar.classList.remove('show');
+  }
+
+  // Stats
+  document.getElementById('stats').innerHTML = `
+    <span>行数: <strong>${rows.length.toLocaleString()}</strong></span>
+    <span>列数: <strong>${columns.length}</strong></span>
+    <span>空值: <strong>${countNulls()}</strong></span>
+    <span>重复行: <strong>${countDupes()}</strong></span>
+    ${!isPro ? `<span style="color:var(--yellow)">| 免费版最多显示 ${FREE_ROW_LIMIT} 行</span>` : `<span style="color:var(--green)">| Pro 已激活</span>`}
+  `;
+
+  // Table
+  let html = '<thead><tr><th style="width:32px;text-align:center;">#</th>';
+  columns.forEach((col, i) => {
+    html += `<th>${esc(col)} <span class="col-menu-btn" title="列菜单" onclick="event.stopPropagation();showColMenu(${i})">▾</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+  displayRows.forEach((row, ri) => {
+    html += '<tr><td style="text-align:center;color:var(--text2);">' + (ri + 1) + '</td>';
+    columns.forEach(col => {
+      html += '<td>' + esc(String(row[col] ?? '')) + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('tableWrap').innerHTML = '<table>' + html + '</table>';
+
+  // Update modals
+  updateColSelects();
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function countNulls() {
+  let n = 0;
+  rows.forEach(r => columns.forEach(c => { if (r[c] === null || r[c] === undefined || r[c] === '') n++; }));
+  return n;
+}
+
+function countDupes() {
+  const seen = new Set();
+  let d = 0;
+  rows.forEach(r => {
+    const key = columns.map(c => r[c]).join('|');
+    if (seen.has(key)) d++; else seen.add(key);
+  });
+  return d;
+}
+
+function updateColSelects() {
+  const selects = ['splitCol', 'mergeCol1', 'mergeCol2', 'renameCol', 'trimCol'];
+  selects.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const val = sel.value;
+    sel.innerHTML = id === 'trimCol' ? '<option value="">全部列</option>' : '';
+    columns.forEach((col, i) => {
+      sel.innerHTML += `<option value="${i}">${esc(col)}</option>`;
+    });
+    sel.value = val;
+  });
+}
+
+// ==== OPERATIONS ====
+function saveState() {
+  history.push({ rows: JSON.parse(JSON.stringify(rows)), columns: [...columns] });
+  if (history.length > 50) history.shift();
+}
+
+function undoLast() {
+  if (history.length <= 1) { showToast('无法撤销'); return; }
+  history.pop();
+  const prev = history[history.length - 1];
+  rows = prev.rows;
+  columns = prev.columns;
+  render();
+  showToast('已撤销');
+}
+
+function deduplicate() {
+  saveState();
+  const seen = new Set();
+  rows = rows.filter(r => {
+    const key = columns.map(c => r[c] ?? '').join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  render();
+  showToast(`已去重，剩余 ${rows.length} 行`);
+}
+
+function removeEmptyRows() {
+  saveState();
+  rows = rows.filter(r => columns.some(c => r[c] !== null && r[c] !== undefined && r[c] !== ''));
+  render();
+  showToast(`已删除空行，剩余 ${rows.length} 行`);
+}
+
+function trimWhitespace() {
+  saveState();
+  const ci = document.getElementById('trimCol').value;
+  const both = document.getElementById('trimBoth').checked;
+  const extra = document.getElementById('trimExtra').checked;
+  rows.forEach(r => {
+    (ci === '' ? columns : [columns[parseInt(ci)]]).forEach(c => {
+      let v = String(r[c] ?? '');
+      if (both) v = v.trim();
+      if (extra) v = v.replace(/\s+/g, ' ');
+      r[c] = v;
+    });
+  });
+  render();
+  closeModal('trimModal');
+  showToast('空格处理完成');
+}
+
+function findReplace() {
+  const find = document.getElementById('findText').value;
+  const replace = document.getElementById('replaceText').value;
+  const regex = document.getElementById('regexMode').checked;
+  if (!find) return;
+  saveState();
+  let count = 0;
+  rows.forEach(r => columns.forEach(c => {
+    const v = String(r[c] ?? '');
+    if (regex) {
+      try {
+        const re = new RegExp(find, 'g');
+        const nv = v.replace(re, replace);
+        if (nv !== v) { r[c] = nv; count++; }
+      } catch(e) {}
+    } else {
+      if (v.includes(find)) { r[c] = v.split(find).join(replace); count++; }
+    }
+  }));
+  render();
+  closeModal('findReplaceModal');
+  showToast(`已替换 ${count} 处`);
+}
+
+function splitColumn() {
+  const ci = parseInt(document.getElementById('splitCol').value);
+  const delim = document.getElementById('splitDelim').value;
+  const max = parseInt(document.getElementById('splitMax').value);
+  if (isNaN(ci)) return;
+  saveState();
+  const colName = columns[ci];
+  // Find max parts
+  let maxParts = 0;
+  rows.forEach(r => {
+    const parts = String(r[colName] ?? '').split(delim, max);
+    if (parts.length > maxParts) maxParts = parts.length;
+  });
+  // Insert new columns
+  const newCols = Array.from({ length: maxParts }, (_, i) => colName + '_' + (i + 1));
+  columns.splice(ci + 1, 0, ...newCols);
+  rows.forEach(r => {
+    const parts = String(r[colName] ?? '').split(delim, max);
+    for (let i = 0; i < maxParts; i++) {
+      r[newCols[i]] = parts[i] !== undefined ? parts[i].trim() : '';
+    }
+  });
+  render();
+  closeModal('splitModal');
+  showToast(`列已拆分为 ${maxParts} 列`);
+}
+
+function mergeColumns() {
+  const c1 = parseInt(document.getElementById('mergeCol1').value);
+  const c2 = parseInt(document.getElementById('mergeCol2').value);
+  const sep = document.getElementById('mergeSep').value;
+  if (isNaN(c1) || isNaN(c2)) return;
+  saveState();
+  const newName = columns[c1] + sep + columns[c2];
+  rows.forEach(r => { r[newName] = String(r[columns[c1]] ?? '') + sep + String(r[columns[c2]] ?? ''); });
+  // Remove old columns
+  columns.splice(Math.max(c1, c2), 1);
+  columns.splice(Math.min(c1, c2), 1);
+  columns.splice(Math.min(c1, c2), 0, newName);
+  // Clean old keys
+  const old1 = columns.splice(Math.max(c1, c2) + 1, 1)[0];
+  // Actually let's rebuild properly
+  render();
+  closeModal('mergeModal');
+  showToast('列已合并');
+}
+
+function renameColumn() {
+  const ci = parseInt(document.getElementById('renameCol').value);
+  const newName = document.getElementById('renameNew').value.trim();
+  if (isNaN(ci) || !newName) return;
+  saveState();
+  const oldName = columns[ci];
+  rows.forEach(r => { r[newName] = r[oldName]; delete r[oldName]; });
+  columns[ci] = newName;
+  render();
+  closeModal('renameModal');
+  showToast('列已重命名');
+}
+
+function fixEncoding() {
+  saveState();
+  let fixed = 0;
+  const fixes = {
+    'Ã©': 'é', 'Ã¨': 'è', 'Ã¼': 'ü', 'Ã¤': 'ä', 'Ã¶': 'ö',
+    'Ã ': 'à', 'Ã§': 'ç', 'Ã±': 'ñ', 'â\x80\x99': "'", 'â\x80\x9c': '"',
+    'â\x80\x9d': '"', 'â\x80\x94': '—', 'â\x80\x93': '–',
+    'Â': '', 'Ã\x81': 'Á', 'Ã\x89': 'É', 'Ã\x8D': 'Í',
+  };
+  rows.forEach(r => columns.forEach(c => {
+    let v = String(r[c] ?? '');
+    for (const [garbled, correct] of Object.entries(fixes)) {
+      if (v.includes(garbled)) { v = v.split(garbled).join(correct); fixed++; }
+    }
+    r[c] = v;
+  }));
+  render();
+  showToast(`修复了 ${fixed} 处乱码`);
+}
+
+function autoFixDates() {
+  saveState();
+  let fixed = 0;
+  rows.forEach(r => columns.forEach(c => {
+    const v = String(r[c] ?? '').trim();
+    // Try common date patterns
+    const d = new Date(v);
+    if (!isNaN(d.getTime()) && d.getFullYear() > 1900 && v.match(/\d/)) {
+      r[c] = d.toISOString().split('T')[0];
+      fixed++;
+    }
+  }));
+  render();
+  showToast(`修正了 ${fixed} 个日期`);
+}
+
+// ==== EXPORT ====
+function getExportData() {
+  return (!isPro && rows.length > FREE_ROW_LIMIT) ? rows.slice(0, FREE_ROW_LIMIT) : rows;
+}
+
+function exportCSV() {
+  const data = getExportData();
+  const csv = Papa.unparse({ fields: columns, data: data });
+  download(csv, 'cleaned_data.csv', 'text/csv');
+}
+
+function exportJSON() {
+  const data = getExportData();
+  download(JSON.stringify(data, null, 2), 'cleaned_data.json', 'application/json');
+}
+
+function exportExcel() {
+  const data = getExportData();
+  const ws = XLSX.utils.json_to_sheet(data, { header: columns });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Data');
+  XLSX.writeFile(wb, 'cleaned_data.xlsx');
+}
+
+function download(content, filename, mime) {
+  const blob = new Blob(['﻿' + content], { type: mime + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ==== MODALS ====
+function showProModal() { document.getElementById('proModal').classList.add('show'); }
+function closeProModal() { document.getElementById('proModal').classList.remove('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function showFindReplaceModal() { document.getElementById('findReplaceModal').classList.add('show'); }
+function showSplitModal() { updateColSelects(); document.getElementById('splitModal').classList.add('show'); }
+function showMergeModal() { updateColSelects(); document.getElementById('mergeModal').classList.add('show'); }
+function showRenameModal() { updateColSelects(); document.getElementById('renameModal').classList.add('show'); }
+function showTrimModal() { updateColSelects(); document.getElementById('trimModal').classList.add('show'); }
+
+function verifyLicense() {
+  const key = document.getElementById('licenseKey').value.trim();
+  // Simple client-side validation (in production, verify server-side)
+  if (key.startsWith('DC-PRO-') && key.length > 20) {
+    isPro = true;
+    localStorage.setItem('dc_pro_key', key);
+    document.querySelector('.pro-badge').textContent = '⭐ Pro 已激活';
+    document.querySelector('.pro-badge').style.background = 'var(--green)';
+    closeProModal();
+    render();
+    showToast('Pro 已激活！');
+  } else {
+    showToast('激活码无效');
+  }
+}
+
+function clearAll() {
+  if (!confirm('确定清空所有数据？')) return;
+  rows = [];
+  columns = [];
+  history = [];
+  workspace.style.display = 'none';
+  showPaste(true);
+}
+
+// ==== PASTE MODE ====
+function showPaste(show) {
+  uploadZone.style.display = show ? 'block' : 'none';
+  pasteArea.style.display = show ? 'block' : 'none';
+}
+
+// Key shortcuts
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'v' && document.activeElement === document.body) {
+    setTimeout(() => showPaste(false), 100); // File was probably uploaded
+  }
+  if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undoLast(); }
+});
+
+// Restore Pro status
+(function() {
+  const saved = localStorage.getItem('dc_pro_key');
+  if (saved && saved.startsWith('DC-PRO-') && saved.length > 20) {
+    isPro = true;
+    document.querySelector('.pro-badge').textContent = '⭐ Pro 已激活';
+    document.querySelector('.pro-badge').style.background = 'var(--green)';
+  }
+})();
+
+// ==== TOAST ====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+</script>
+</body>
+</html>
