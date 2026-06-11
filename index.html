@@ -255,7 +255,7 @@ tbody tr:hover td { background: var(--surface); }
 <main>
   <div class="limit-bar" id="limitBar">
     数据已超过 100 行，显示前 100 行。解锁无限行数 →
-    <a href="#" onclick="showProModal();return false">升级 Pro（$5/月）</a>
+    <a href="#" onclick="showProModal();return false">升级 Pro（¥15 终身）</a>
   </div>
 
   <div class="upload-zone" id="uploadZone">
@@ -297,11 +297,11 @@ tbody tr:hover td { background: var(--surface); }
     <p style="color:var(--text2);margin-bottom:16px;">解锁无限行数 + 批量处理</p>
     <div style="display:flex;gap:12px;margin-bottom:16px;">
       <a href="https://lopfve.lemonsqueezy.com/buy/f76e6a61-406b-40b0-b8c0-ecbbc2406f51" target="_blank" rel="noopener" style="flex:1;border:1px solid var(--accent);border-radius:var(--radius);padding:16px;text-align:center;text-decoration:none;color:var(--text);display:block;" onmouseover="this.style.background='#1e3a5f'" onmouseout="this.style.background='transparent'">
-        <div style="font-size:1.5rem;font-weight:700;">$5<span style="font-size:0.8rem;color:var(--text2);">/月</span></div>
+        <div style="font-size:1.5rem;font-weight:700;">¥3.99<span style="font-size:0.8rem;color:var(--text2);">/月</span></div>
         <div style="font-size:0.8rem;color:var(--text2);">按月订阅 →</div>
       </a>
       <a href="https://lopfve.lemonsqueezy.com/buy/f76e6a61-406b-40b0-b8c0-ecbbc2406f51" target="_blank" rel="noopener" style="flex:1;border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;text-decoration:none;color:var(--text);display:block;" onmouseover="this.style.background='#1e3a5f'" onmouseout="this.style.background='transparent'">
-        <div style="font-size:1.5rem;font-weight:700;">$29<span style="font-size:0.8rem;color:var(--text2);">/终身</span></div>
+        <div style="font-size:1.5rem;font-weight:700;">¥15<span style="font-size:0.8rem;color:var(--text2);">/终身</span></div>
         <div style="font-size:0.8rem;color:var(--text2);">一次购买 →</div>
       </a>
     </div>
@@ -506,7 +506,7 @@ function render() {
   const limitBar = document.getElementById('limitBar');
   if (!isPro && rows.length > FREE_ROW_LIMIT) {
     limitBar.classList.add('show');
-    limitBar.textContent = `数据共 ${rows.length} 行，仅显示前 ${FREE_ROW_LIMIT} 行。解锁无限行数 → 升级 Pro（$5/月）`;
+    limitBar.textContent = `数据共 ${rows.length} 行，仅显示前 ${FREE_ROW_LIMIT} 行。解锁无限行数 → 升级 Pro（¥15 终身）`;
   } else {
     limitBar.classList.remove('show');
   }
